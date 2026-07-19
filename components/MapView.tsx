@@ -35,6 +35,11 @@ function createNeonMarker(color: string, glowColor: string): L.DivIcon {
 const markerOther = createNeonMarker("#FF4500", "#FF6622"); // orange — other racers
 const markerSelf  = createNeonMarker("#00D4FF", "#33DDFF"); // blue   — own position
 
+/* ── Display name with nickname fallback ── */
+function racerLabel(r: ActiveRacer): string {
+  return r.nickname?.trim() || r.display_name || "Racer";
+}
+
 /* ── Relative time helper ── */
 function timeAgo(iso: string): string {
   const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -109,9 +114,14 @@ export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
             <Popup closeButton={false}>
               <div style={popupStyle("rgba(255,69,0,0.4)")}>
                 <div style={{ color: "#FF4500", fontWeight: 700, fontSize: "14px" }}>
-                  {r.display_name ?? "Racer"}
+                  {racerLabel(r)}
                 </div>
-                <div style={{ color: "rgba(0,212,255,0.6)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
+                {(r.car_make || r.car_model) && (
+                  <div style={{ color: "rgba(255,100,0,0.75)", fontSize: "10px", marginTop: "2px", letterSpacing: "0.06em" }}>
+                    {[r.car_make, r.car_model].filter(Boolean).join(" ")}
+                  </div>
+                )}
+                <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
                   {timeAgo(r.updated_at)}
                 </div>
               </div>
@@ -126,8 +136,13 @@ export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
               <Popup closeButton={false}>
                 <div style={popupStyle("rgba(0,212,255,0.4)")}>
                   <div style={{ color: "#00D4FF", fontWeight: 700, fontSize: "14px" }}>
-                    {selfRacer.display_name ?? "TU"}
+                    {racerLabel(selfRacer)}
                   </div>
+                  {(selfRacer.car_make || selfRacer.car_model) && (
+                    <div style={{ color: "rgba(0,212,255,0.6)", fontSize: "10px", marginTop: "2px", letterSpacing: "0.06em" }}>
+                      {[selfRacer.car_make, selfRacer.car_model].filter(Boolean).join(" ")}
+                    </div>
+                  )}
                   <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
                     LIVE
                   </div>

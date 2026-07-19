@@ -10,7 +10,7 @@ export async function GET() {
 
     const { data, error } = await db
       .from("live_locations")
-      .select("racer_id, lat, lng, updated_at, racers(display_name, avatar_url)")
+      .select("racer_id, lat, lng, updated_at, racers(display_name, avatar_url, nickname, car_make, car_model)")
       .eq("is_active", true)
       .gt("updated_at", cutoff);
 
@@ -18,7 +18,13 @@ export async function GET() {
 
     // Flatten join — racers() comes back as an object (one-to-one FK)
     const racers = (data ?? []).map((row) => {
-      const racer = row.racers as { display_name: string | null; avatar_url: string | null } | null;
+      const racer = row.racers as {
+        display_name: string | null;
+        avatar_url:   string | null;
+        nickname:     string | null;
+        car_make:     string | null;
+        car_model:    string | null;
+      } | null;
       return {
         racer_id:     row.racer_id,
         lat:          row.lat,
@@ -26,6 +32,9 @@ export async function GET() {
         updated_at:   row.updated_at,
         display_name: racer?.display_name ?? null,
         avatar_url:   racer?.avatar_url   ?? null,
+        nickname:     racer?.nickname     ?? null,
+        car_make:     racer?.car_make     ?? null,
+        car_model:    racer?.car_model    ?? null,
       };
     });
 

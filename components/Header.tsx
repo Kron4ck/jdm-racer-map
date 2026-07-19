@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 
 const GROUP_NAME  = "JDM Romania";
@@ -75,16 +76,30 @@ export default function Header() {
         <div className="racing-stripe w-full" />
       </div>
 
-      {/* Right – online status */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded neon-border bg-[rgba(0,212,255,0.04)]">
-        <span className="live-dot" />
-        <span
-          className="text-white text-xs font-semibold tracking-wider"
-          style={{ fontFamily: "var(--font-racing)" }}
+      {/* Right – profile icon + online status */}
+      <div className="flex items-center gap-2">
+        <Link
+          href="/profile"
+          className="flex items-center justify-center w-8 h-8 rounded border border-[rgba(0,212,255,0.25)]
+                     bg-[rgba(0,212,255,0.04)] text-[rgba(0,212,255,0.6)] active:scale-95 transition-all"
+          aria-label="Editează profilul"
         >
-          <span className="neon-text-blue font-bold">{MOCK_ONLINE}</span>
-          <span className="text-[rgba(226,232,240,0.5)] ml-1">ONLINE</span>
-        </span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+          </svg>
+        </Link>
+
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded neon-border bg-[rgba(0,212,255,0.04)]">
+          <span className="live-dot" />
+          <span
+            className="text-white text-xs font-semibold tracking-wider"
+            style={{ fontFamily: "var(--font-racing)" }}
+          >
+            <span className="neon-text-blue font-bold">{MOCK_ONLINE}</span>
+            <span className="text-[rgba(226,232,240,0.5)] ml-1">ONLINE</span>
+          </span>
+        </div>
       </div>
     </header>
   );

@@ -11,28 +11,40 @@ export type Database = {
     Tables: {
       racers: {
         Row: {
-          id:           string;
-          telegram_id:  number;
-          username:     string | null;
-          display_name: string | null;
-          avatar_url:   string | null;
-          created_at:   string;
+          id:            string;
+          telegram_id:   number;
+          username:      string | null;
+          display_name:  string | null;
+          avatar_url:    string | null;
+          created_at:    string;
+          nickname:      string | null;
+          car_make:      string | null;
+          car_model:     string | null;
+          car_photo_url: string | null;
         };
         Insert: {
-          id?:           string;
-          telegram_id:   number;
-          username?:     string | null;
-          display_name?: string | null;
-          avatar_url?:   string | null;
-          created_at?:   string;
+          id?:            string;
+          telegram_id:    number;
+          username?:      string | null;
+          display_name?:  string | null;
+          avatar_url?:    string | null;
+          created_at?:    string;
+          nickname?:      string | null;
+          car_make?:      string | null;
+          car_model?:     string | null;
+          car_photo_url?: string | null;
         };
         Update: {
-          id?:           string;
-          telegram_id?:  number;
-          username?:     string | null;
-          display_name?: string | null;
-          avatar_url?:   string | null;
-          created_at?:   string;
+          id?:            string;
+          telegram_id?:   number;
+          username?:      string | null;
+          display_name?:  string | null;
+          avatar_url?:    string | null;
+          created_at?:    string;
+          nickname?:      string | null;
+          car_make?:      string | null;
+          car_model?:     string | null;
+          car_photo_url?: string | null;
         };
         Relationships: [];
       };

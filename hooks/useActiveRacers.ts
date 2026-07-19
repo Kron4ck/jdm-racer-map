@@ -9,6 +9,9 @@ export interface ActiveRacer {
   updated_at:   string;
   display_name: string | null;
   avatar_url:   string | null;
+  nickname:     string | null;
+  car_make:     string | null;
+  car_model:    string | null;
 }
 
 export function useActiveRacers(intervalMs = 5_000): ActiveRacer[] {
