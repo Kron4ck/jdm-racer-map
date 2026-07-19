@@ -66,6 +66,7 @@ export type Database = {
           session_distance_m: number;
           last_lat:           number | null;
           last_lng:           number | null;
+          flash_at:           string | null;
         };
         Insert: {
           id?:                 string;
@@ -77,6 +78,7 @@ export type Database = {
           session_distance_m?: number;
           last_lat?:           number | null;
           last_lng?:           number | null;
+          flash_at?:           string | null;
         };
         Update: {
           id?:                 string;
@@ -88,6 +90,7 @@ export type Database = {
           session_distance_m?: number;
           last_lat?:           number | null;
           last_lng?:           number | null;
+          flash_at?:           string | null;
         };
         Relationships: [
           {

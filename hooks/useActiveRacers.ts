@@ -7,6 +7,7 @@ export interface ActiveRacer {
   lat:          number;
   lng:          number;
   updated_at:   string;
+  flash_at:     string | null;
   display_name: string | null;
   avatar_url:   string | null;
   nickname:     string | null;

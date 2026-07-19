@@ -1,11 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useActiveRacers } from "@/hooks/useActiveRacers";
 import { useLocationSharing } from "@/hooks/useLocationSharing";
 import { useConvoy } from "@/hooks/useConvoy";
 import ConvoyToastContainer from "@/components/ConvoyToast";
+
+const FLASH_COOLDOWN_SEC = 10;
 
 const MapView = dynamic(() => import("./MapView"), {
   ssr: false,
@@ -26,6 +29,35 @@ export default function MapSection() {
   const activeRacers         = useActiveRacers(5_000);
   const { isActive, isLoading, error, distanceM, toggle } = useLocationSharing(initData);
   const { nearbyIds, toasts, dismiss } = useConvoy(racer?.id ?? null, initData);
+
+  const [flashCooldown, setFlashCooldown] = useState(0);
+  const [flashLoading, setFlashLoading]   = useState(false);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  }, []);
+
+  async function handleFlash() {
+    if (!initData || flashCooldown > 0 || flashLoading) return;
+    setFlashLoading(true);
+    try {
+      await fetch("/api/location/flash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData }),
+      });
+    } finally {
+      setFlashLoading(false);
+      setFlashCooldown(FLASH_COOLDOWN_SEC);
+      cooldownRef.current = setInterval(() => {
+        setFlashCooldown((s) => {
+          if (s <= 1) { clearInterval(cooldownRef.current!); return 0; }
+          return s - 1;
+        });
+      }, 1_000);
+    }
+  }
 
   const racerCount = activeRacers.length;
 
@@ -79,6 +111,44 @@ export default function MapSection() {
               </span>
             </div>
           )}
+
+          {/* Flash button — visible only when location is active */}
+          {isActive && (
+            <button
+              onClick={handleFlash}
+              disabled={flashCooldown > 0 || flashLoading}
+              className={[
+                "flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold tracking-wider uppercase transition-all",
+                "border backdrop-blur-sm",
+                flashCooldown > 0 || flashLoading
+                  ? "bg-[rgba(255,102,0,0.05)] border-[rgba(255,102,0,0.2)] text-[rgba(255,102,0,0.4)] cursor-not-allowed"
+                  : "bg-[rgba(255,102,0,0.12)] border-[rgba(255,102,0,0.5)] text-[#FF6600] shadow-[0_0_10px_rgba(255,102,0,0.3)] cursor-pointer active:scale-95",
+              ].join(" ")}
+              style={{ fontFamily: "var(--font-racing)" }}
+            >
+              {flashLoading ? (
+                <>
+                  <span className="w-2 h-2 rounded-full border border-current border-t-transparent animate-spin" />
+                  <span>FLASH…</span>
+                </>
+              ) : flashCooldown > 0 ? (
+                <>
+                  <svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="6,0 1,7 5,7 4,12 9,5 5,5" />
+                  </svg>
+                  <span>FLASH {flashCooldown}s</span>
+                </>
+              ) : (
+                <>
+                  <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" stroke="none">
+                    <polygon points="6,0 1,7 5,7 4,12 9,5 5,5" />
+                  </svg>
+                  <span>FLASH</span>
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={toggle}
             disabled={isLoading}

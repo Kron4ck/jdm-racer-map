@@ -10,7 +10,7 @@ export async function GET() {
 
     const { data, error } = await db
       .from("live_locations")
-      .select("racer_id, lat, lng, updated_at, racers(display_name, avatar_url, nickname, car_make, car_model)")
+      .select("racer_id, lat, lng, updated_at, flash_at, racers(display_name, avatar_url, nickname, car_make, car_model)")
       .eq("is_active", true)
       .gt("updated_at", cutoff);
 
@@ -30,6 +30,7 @@ export async function GET() {
         lat:          row.lat,
         lng:          row.lng,
         updated_at:   row.updated_at,
+        flash_at:     row.flash_at     ?? null,
         display_name: racer?.display_name ?? null,
         avatar_url:   racer?.avatar_url   ?? null,
         nickname:     racer?.nickname     ?? null,

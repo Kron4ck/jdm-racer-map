@@ -9,21 +9,37 @@ import type { ActiveRacer } from "@/hooks/useActiveRacers";
 const MAP_CENTER: [number, number] = [47.0105, 28.8638];
 const MAP_ZOOM = 13;
 const MARKER_SIZE = 38;
-const AVATAR_ZOOM_THRESHOLD = 16; // show avatar only at zoom >= 16
+const AVATAR_ZOOM_THRESHOLD = 16;
+const FLASH_WINDOW_MS = 8_000;
+
+function isFlashing(flashAt: string | null): boolean {
+  if (!flashAt) return false;
+  return Date.now() - new Date(flashAt).getTime() < FLASH_WINDOW_MS;
+}
+
+function flashRings(size: number): string {
+  const half = size / 2;
+  return `
+    <div style="position:absolute;inset:-${half}px;border-radius:50%;border:2.5px solid #FF6600;
+      animation:flash-ping-outer 0.75s ease-out infinite;pointer-events:none;"></div>
+    <div style="position:absolute;inset:-${Math.round(half * 0.55)}px;border-radius:50%;border:2px solid #FFB300;
+      animation:flash-ping-inner 0.75s ease-out 0.15s infinite;pointer-events:none;"></div>`;
+}
 
 /* ── Simple neon dot marker (used at low zoom) ── */
-function createNeonMarker(color: string, glowColor: string, convoy = false): L.DivIcon {
-  const ring = convoy
+function createNeonMarker(color: string, glowColor: string, convoy = false, flash = false): L.DivIcon {
+  const convoyRing = convoy
     ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:2px solid ${color};animation:convoy-pulse 1.5s ease-out infinite;pointer-events:none;"></div>`
     : "";
+  const flashOverlay = flash ? flashRings(14) : "";
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;width:14px;height:14px;">
-      ${ring}
+      ${convoyRing}${flashOverlay}
       <div style="
         width:14px;height:14px;border-radius:50%;
-        background:${color};border:2px solid ${glowColor};
-        box-shadow:0 0 8px ${color},0 0 16px ${glowColor}66${convoy ? `,0 0 24px ${glowColor}` : ""};
+        background:${flash ? "#FF6600" : color};border:2px solid ${flash ? "#FFB300" : glowColor};
+        box-shadow:0 0 8px ${color},0 0 16px ${glowColor}66${convoy ? `,0 0 24px ${glowColor}` : ""}${flash ? ",0 0 20px #FF660088" : ""};
         position:relative;
       ">
         <div style="width:4px;height:4px;border-radius:50%;background:#fff;opacity:0.8;position:absolute;top:2px;left:2px;"></div>
@@ -41,10 +57,12 @@ function createAvatarMarker(
   borderColor: string,
   glowColor:   string,
   convoy:      boolean = false,
+  flash:       boolean = false,
 ): L.DivIcon {
   const convoyRing = convoy
     ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:2px solid ${borderColor};animation:convoy-pulse 1.5s ease-out infinite;pointer-events:none;"></div>`
     : "";
+  const flashOverlay = flash ? flashRings(MARKER_SIZE) : "";
 
   const inner = avatarUrl
     ? `<img src="${avatarUrl}" width="${MARKER_SIZE}" height="${MARKER_SIZE}"
@@ -55,14 +73,17 @@ function createAvatarMarker(
                stroke="${borderColor}" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
        </svg>`;
 
+  const activeBorder = flash ? "#FF6600" : borderColor;
+  const activeGlow   = flash ? "#FF660088" : `${glowColor}55`;
+
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;">
-      ${convoyRing}
+      ${convoyRing}${flashOverlay}
       <div style="
         width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;border-radius:50%;
-        border:2.5px solid ${borderColor};
-        box-shadow:0 0 8px ${glowColor},0 0 18px ${glowColor}55${convoy ? `,0 0 30px ${glowColor}88` : ""};
+        border:2.5px solid ${activeBorder};
+        box-shadow:0 0 8px ${glowColor},0 0 18px ${activeGlow}${convoy ? `,0 0 30px ${glowColor}88` : ""}${flash ? ",0 0 28px #FF660099" : ""};
         overflow:hidden;background:#0a0b14;
         display:flex;align-items:center;justify-content:center;
       ">${inner}</div>
@@ -139,9 +160,10 @@ function MarkersLayer({ otherRacers, selfRacer, nearbyIds }: MarkersProps) {
       {/* Other active racers */}
       {otherRacers.map((r) => {
         const inConvoy = nearbyIds?.has(r.racer_id) ?? false;
+        const flashing = isFlashing(r.flash_at);
         const icon = showAvatar
-          ? createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622", inConvoy)
-          : createNeonMarker("#FF4500", "#FF6622", inConvoy);
+          ? createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622", inConvoy, flashing)
+          : createNeonMarker("#FF4500", "#FF6622", inConvoy, flashing);
 
         return (
           <Marker key={r.racer_id} position={[r.lat, r.lng]} icon={icon}>
