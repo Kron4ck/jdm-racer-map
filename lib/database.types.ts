@@ -24,6 +24,7 @@ export type Database = {
           convoy_notifications_enabled:  boolean;
           total_distance_m:              number;
           is_admin:                      boolean;
+          exclude_from_leaderboard:      boolean;
         };
         Insert: {
           id?:                             string;
@@ -39,6 +40,7 @@ export type Database = {
           convoy_notifications_enabled?:   boolean;
           total_distance_m?:               number;
           is_admin?:                       boolean;
+          exclude_from_leaderboard?:       boolean;
         };
         Update: {
           id?:                             string;
@@ -54,6 +56,7 @@ export type Database = {
           convoy_notifications_enabled?:   boolean;
           total_distance_m?:               number;
           is_admin?:                       boolean;
+          exclude_from_leaderboard?:       boolean;
         };
         Relationships: [];
       };

@@ -10,6 +10,7 @@ export async function GET() {
     const { data, error } = await db
       .from("racers")
       .select("id, nickname, display_name, car_make, car_model, avatar_url, total_distance_m")
+      .eq("exclude_from_leaderboard", false)
       .order("total_distance_m", { ascending: false });
 
     if (error) throw error;
