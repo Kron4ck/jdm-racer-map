@@ -16,7 +16,7 @@ export default function DashboardPage() {
       <div className="racing-stripe shrink-0" />
 
       {/* Content area — map always mounted, other tabs overlay it */}
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 relative flex flex-col">
         <MapSection />
 
         {activeTab !== "map" && (
