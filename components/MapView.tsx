@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents } 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { ActiveRacer } from "@/hooks/useActiveRacers";
+import type { POI } from "@/hooks/usePOI";
 
 const MAP_CENTER: [number, number] = [47.0105, 28.8638];
 const MAP_ZOOM = 13;
@@ -92,6 +93,118 @@ function createAvatarMarker(
     iconAnchor:  [MARKER_SIZE / 2, MARKER_SIZE / 2],
     popupAnchor: [0, -MARKER_SIZE / 2 - 6],
   });
+}
+
+/* ── POI icon config ── */
+const POI_ICON_CONFIG: Record<string, { color: string; label: string }> = {
+  meetup:  { color: "#00D4FF", label: "Loc de întâlnire" },
+  gas:     { color: "#FFB300", label: "Benzinărie" },
+  wash:    { color: "#00FFCC", label: "Spălătorie" },
+  repair:  { color: "#FF4500", label: "Service" },
+  default: { color: "#CC44FF", label: "Punct" },
+};
+
+function createPOIMarker(iconType: string): L.DivIcon {
+  const { color } = POI_ICON_CONFIG[iconType] ?? POI_ICON_CONFIG.default;
+  return L.divIcon({
+    className: "",
+    html: `<div style="position:relative;width:22px;height:30px;">
+      <svg width="22" height="30" viewBox="0 0 22 30" fill="none"
+           style="filter:drop-shadow(0 0 5px ${color}) drop-shadow(0 0 2px ${color});">
+        <path d="M11 0C4.925 0 0 4.925 0 11c0 3.624 1.63 6.858 4.187 9.014L11 30l6.813-9.986C20.37 17.858 22 14.624 22 11 22 4.925 17.075 0 11 0z"
+              fill="${color}" opacity="0.92"/>
+        <circle cx="11" cy="11" r="4.5" fill="rgba(255,255,255,0.35)"/>
+        <circle cx="11" cy="11" r="2" fill="rgba(255,255,255,0.65)"/>
+      </svg>
+    </div>`,
+    iconSize:    [22, 30],
+    iconAnchor:  [11, 30],
+    popupAnchor: [0, -32],
+  });
+}
+
+/* ── Map click handler (add-POI mode) ── */
+function MapClickHandler({
+  enabled,
+  onMapClick,
+}: {
+  enabled:    boolean;
+  onMapClick: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      if (enabled) onMapClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+/* ── POI markers layer ── */
+interface POILayerProps {
+  pois:        POI[];
+  isAdmin:     boolean;
+  onDeletePOI: (id: string) => void;
+}
+
+function POILayer({ pois, isAdmin, onDeletePOI }: POILayerProps) {
+  return (
+    <>
+      {pois.map((poi) => {
+        const cfg = POI_ICON_CONFIG[poi.icon_type] ?? POI_ICON_CONFIG.default;
+        return (
+          <Marker key={poi.id} position={[poi.lat, poi.lng]} icon={createPOIMarker(poi.icon_type)}>
+            <Popup closeButton={false}>
+              <div style={{
+                background:   "#0e0f1c",
+                border:       `1px solid ${cfg.color}55`,
+                borderRadius: "6px",
+                padding:      "8px 12px",
+                color:        "#e2e8f0",
+                fontFamily:   "var(--font-racing), sans-serif",
+                minWidth:     "140px",
+              }}>
+                <div style={{ fontSize: "9px", color: `${cfg.color}99`, letterSpacing: "0.1em",
+                              textTransform: "uppercase", marginBottom: "4px" }}>
+                  {cfg.label}
+                </div>
+                <div style={{ color: cfg.color, fontWeight: 700, fontSize: "13px" }}>
+                  {poi.title}
+                </div>
+                {poi.description && (
+                  <div style={{ color: "rgba(226,232,240,0.65)", fontSize: "11px",
+                                marginTop: "4px", lineHeight: 1.4 }}>
+                    {poi.description}
+                  </div>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => onDeletePOI(poi.id)}
+                    style={{
+                      marginTop:    "10px",
+                      background:   "rgba(255,34,0,0.1)",
+                      border:       "1px solid rgba(255,34,0,0.35)",
+                      borderRadius: "3px",
+                      color:        "#FF4444",
+                      fontSize:     "9px",
+                      fontWeight:   700,
+                      letterSpacing:"0.08em",
+                      padding:      "3px 8px",
+                      cursor:       "pointer",
+                      width:        "100%",
+                      fontFamily:   "var(--font-racing), sans-serif",
+                      textTransform:"uppercase",
+                    }}
+                  >
+                    Șterge punct
+                  </button>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+    </>
+  );
 }
 
 /* ── Display name with nickname fallback ── */
@@ -253,9 +366,23 @@ interface MapViewProps {
   activeRacers: ActiveRacer[];
   myRacerId:    string | null;
   nearbyIds?:   Set<string>;
+  pois?:        POI[];
+  isAdmin?:     boolean;
+  addMode?:     boolean;
+  onMapClick?:  (lat: number, lng: number) => void;
+  onDeletePOI?: (id: string) => void;
 }
 
-export default function MapView({ activeRacers, myRacerId, nearbyIds }: MapViewProps) {
+export default function MapView({
+  activeRacers,
+  myRacerId,
+  nearbyIds,
+  pois        = [],
+  isAdmin     = false,
+  addMode     = false,
+  onMapClick  = () => {},
+  onDeletePOI = () => {},
+}: MapViewProps) {
   useEffect(() => {
     delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
   }, []);
@@ -280,6 +407,8 @@ export default function MapView({ activeRacers, myRacerId, nearbyIds }: MapViewP
         />
         <GeolocateView />
         <MarkersLayer otherRacers={otherRacers} selfRacer={selfRacer} nearbyIds={nearbyIds} />
+        <POILayer pois={pois} isAdmin={isAdmin} onDeletePOI={onDeletePOI} />
+        <MapClickHandler enabled={addMode} onMapClick={onMapClick} />
       </MapContainer>
     </div>
   );

@@ -23,6 +23,7 @@ export type Database = {
           car_photo_url:                 string | null;
           convoy_notifications_enabled:  boolean;
           total_distance_m:              number;
+          is_admin:                      boolean;
         };
         Insert: {
           id?:                             string;
@@ -37,6 +38,7 @@ export type Database = {
           car_photo_url?:                  string | null;
           convoy_notifications_enabled?:   boolean;
           total_distance_m?:               number;
+          is_admin?:                       boolean;
         };
         Update: {
           id?:                             string;
@@ -51,8 +53,48 @@ export type Database = {
           car_photo_url?:                  string | null;
           convoy_notifications_enabled?:   boolean;
           total_distance_m?:               number;
+          is_admin?:                       boolean;
         };
         Relationships: [];
+      };
+
+      points_of_interest: {
+        Row: {
+          id:          string;
+          title:       string;
+          description: string | null;
+          lat:         number;
+          lng:         number;
+          icon_type:   string;
+          created_by:  string | null;
+          created_at:  string;
+        };
+        Insert: {
+          id?:          string;
+          title:        string;
+          description?: string | null;
+          lat:          number;
+          lng:          number;
+          icon_type?:   string;
+          created_by?:  string | null;
+          created_at?:  string;
+        };
+        Update: {
+          title?:       string;
+          description?: string | null;
+          lat?:         number;
+          lng?:         number;
+          icon_type?:   string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "points_of_interest_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "racers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
 
       live_locations: {

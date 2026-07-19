@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const db = getSupabaseAdmin();
     const { data, error } = await db
       .from("racers")
-      .select("id, display_name, avatar_url, nickname, car_make, car_model, car_photo_url, convoy_notifications_enabled")
+      .select("id, display_name, avatar_url, nickname, car_make, car_model, car_photo_url, convoy_notifications_enabled, is_admin")
       .eq("telegram_id", user.telegram_id)
       .single();
 
