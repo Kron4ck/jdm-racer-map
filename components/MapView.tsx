@@ -123,6 +123,25 @@ function createPOIMarker(iconType: string): L.DivIcon {
   });
 }
 
+function createPOIDotMarker(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    html: `<div style="position:relative;width:14px;height:14px;">
+      <div style="
+        width:14px;height:14px;border-radius:50%;
+        background:#FFD700;border:2px solid #FFA500;
+        box-shadow:0 0 8px #FFD700,0 0 16px #FFA50066;
+        position:relative;
+      ">
+        <div style="width:4px;height:4px;border-radius:50%;background:#fff;opacity:0.8;position:absolute;top:2px;left:2px;"></div>
+      </div>
+    </div>`,
+    iconSize:    [14, 14],
+    iconAnchor:  [7, 7],
+    popupAnchor: [0, -10],
+  });
+}
+
 /* ── Map click handler (add-POI mode) ── */
 function MapClickHandler({
   enabled,
@@ -147,12 +166,21 @@ interface POILayerProps {
 }
 
 function POILayer({ pois, isAdmin, onDeletePOI }: POILayerProps) {
+  const [zoom, setZoom] = useState(MAP_ZOOM);
+
+  useMapEvents({
+    zoom: (e) => setZoom(e.target.getZoom()),
+  });
+
+  const showPin = zoom >= AVATAR_ZOOM_THRESHOLD;
+
   return (
     <>
       {pois.map((poi) => {
         const cfg = POI_ICON_CONFIG[poi.icon_type] ?? POI_ICON_CONFIG.default;
+        const icon = showPin ? createPOIMarker(poi.icon_type) : createPOIDotMarker();
         return (
-          <Marker key={poi.id} position={[poi.lat, poi.lng]} icon={createPOIMarker(poi.icon_type)}>
+          <Marker key={poi.id} position={[poi.lat, poi.lng]} icon={icon}>
             <Popup closeButton={false}>
               <div style={{
                 background:   "#0e0f1c",
