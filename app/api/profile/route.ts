@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateTelegramInitData } from "@/lib/telegram-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import type { Database } from "@/lib/database.types";
+
+type RacerUpdate = Database["public"]["Tables"]["racers"]["Update"];
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 
@@ -46,13 +49,12 @@ export async function POST(req: NextRequest) {
 
     const db = getSupabaseAdmin();
 
-    const updatePayload: Record<string, unknown> = {};
-    if (nickname  !== undefined) updatePayload.nickname  = nickname?.trim()  || null;
-    if (car_make  !== undefined) updatePayload.car_make  = car_make?.trim()  || null;
-    if (car_model !== undefined) updatePayload.car_model = car_model?.trim() || null;
-    if (convoy_notifications_enabled !== undefined) {
-      updatePayload.convoy_notifications_enabled = convoy_notifications_enabled;
-    }
+    const updatePayload: RacerUpdate = {
+      ...(nickname  !== undefined && { nickname:  nickname?.trim()  || null }),
+      ...(car_make  !== undefined && { car_make:  car_make?.trim()  || null }),
+      ...(car_model !== undefined && { car_model: car_model?.trim() || null }),
+      ...(convoy_notifications_enabled !== undefined && { convoy_notifications_enabled }),
+    };
 
     const { error } = await db
       .from("racers")
