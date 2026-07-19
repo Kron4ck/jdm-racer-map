@@ -13,6 +13,14 @@ interface LeaderboardEntry {
   total_distance_m: number;
 }
 
+interface ArchiveEntry {
+  rank:       number;
+  nickname:   string | null;
+  car_make:   string | null;
+  car_model:  string | null;
+  distance_m: number;
+}
+
 const MEDALS = [
   { bg: "rgba(255,215,0,0.12)",  border: "rgba(255,215,0,0.5)",  text: "#FFD700", label: "1" },
   { bg: "rgba(192,192,192,0.1)", border: "rgba(192,192,192,0.4)", text: "#C0C0C0", label: "2" },
@@ -138,14 +146,75 @@ function LeaderRow({ entry, pos }: { entry: LeaderboardEntry; pos: number }) {
   );
 }
 
+function formatMonth(label: string): string {
+  const [year, month] = label.split("-");
+  const months = ["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"];
+  return `${months[parseInt(month) - 1]} ${year}`;
+}
+
+function LastMonthBanner({ top, month }: { top: ArchiveEntry[]; month: string }) {
+  if (!top.length) return null;
+  const medalColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
+
+  return (
+    <div
+      className="mx-3 mb-2 rounded-lg border p-3 shrink-0"
+      style={{
+        background:  "rgba(255,215,0,0.04)",
+        borderColor: "rgba(255,215,0,0.2)",
+        boxShadow:   "0 0 16px rgba(255,215,0,0.06)",
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2.5">
+        <span className="text-[9px] tracking-[0.2em] uppercase"
+          style={{ color: "#FFD700", fontFamily: "var(--font-racing)" }}>
+          🏆 Campionii {formatMonth(month)}
+        </span>
+        <div className="flex-1 h-px bg-gradient-to-r from-[rgba(255,215,0,0.3)] to-transparent" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {top.map((e) => {
+          const color = medalColors[e.rank - 1] ?? "rgba(226,232,240,0.5)";
+          const car   = [e.car_make, e.car_model].filter(Boolean).join(" ");
+          return (
+            <div key={e.rank} className="flex items-center gap-2.5">
+              <span
+                className="text-[12px] font-bold w-5 text-center shrink-0"
+                style={{ color, fontFamily: "var(--font-racing)", textShadow: `0 0 6px ${color}66` }}
+              >
+                {e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : "🥉"}
+              </span>
+              <span className="flex-1 text-[11px] truncate"
+                style={{ color: "rgba(226,232,240,0.75)", fontFamily: "var(--font-racing)" }}>
+                {e.nickname || "Racer"}
+                {car && <span style={{ color: "rgba(226,232,240,0.35)" }}> · {car}</span>}
+              </span>
+              <span className="text-[11px] font-bold shrink-0"
+                style={{ color, fontFamily: "var(--font-racing)" }}>
+                {(e.distance_m / 1000).toFixed(1)} km
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function LeaderboardTab() {
-  const [entries,  setEntries]  = useState<LeaderboardEntry[]>([]);
-  const [loading,  setLoading]  = useState(true);
+  const [entries,   setEntries]   = useState<LeaderboardEntry[]>([]);
+  const [lastMonth, setLastMonth] = useState<{ month: string; top: ArchiveEntry[] } | null>(null);
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
-    fetch("/api/leaderboard/distance")
-      .then((r) => r.json())
-      .then((d) => setEntries(d.leaderboard ?? []))
+    Promise.all([
+      fetch("/api/leaderboard/distance").then((r) => r.json()),
+      fetch("/api/leaderboard/last-month").then((r) => r.json()),
+    ])
+      .then(([dist, arch]) => {
+        setEntries(dist.leaderboard ?? []);
+        if (arch.month) setLastMonth({ month: arch.month, top: arch.top ?? [] });
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -163,6 +232,9 @@ export default function LeaderboardTab() {
           Total • Toate sesiunile
         </span>
       </div>
+
+      {/* Last month champions */}
+      {lastMonth && <LastMonthBanner top={lastMonth.top} month={lastMonth.month} />}
 
       {/* Podium legend */}
       <div className="flex items-center gap-3 px-4 pb-2 shrink-0">

@@ -100,6 +100,41 @@ export type Database = {
         ];
       };
 
+      monthly_leaderboard_archive: {
+        Row: {
+          id:          string;
+          month_label: string;
+          racer_id:    string;
+          nickname:    string | null;
+          car_make:    string | null;
+          car_model:   string | null;
+          distance_m:  number;
+          rank:        number;
+          archived_at: string;
+        };
+        Insert: {
+          id?:          string;
+          month_label:  string;
+          racer_id:     string;
+          nickname?:    string | null;
+          car_make?:    string | null;
+          car_model?:   string | null;
+          distance_m:   number;
+          rank:         number;
+          archived_at?: string;
+        };
+        Update: Record<never, never>;
+        Relationships: [
+          {
+            foreignKeyName: "monthly_leaderboard_archive_racer_id_fkey";
+            columns: ["racer_id"];
+            isOneToOne: false;
+            referencedRelation: "racers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
       speed_records: {
         Row: {
           id:             string;
