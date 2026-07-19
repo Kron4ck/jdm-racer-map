@@ -45,11 +45,14 @@ export async function POST(req: NextRequest) {
     if (action === "activate") {
       const { error } = await db.from("live_locations").upsert(
         {
-          racer_id:   racer.id,
-          lat:        lat!,
-          lng:        lng!,
-          is_active:  true,
-          updated_at: new Date().toISOString(),
+          racer_id:           racer.id,
+          lat:                lat!,
+          lng:                lng!,
+          is_active:          true,
+          updated_at:         new Date().toISOString(),
+          session_distance_m: 0,       // reset distance for new session
+          last_lat:           lat!,
+          last_lng:           lng!,
         },
         { onConflict: "racer_id" },
       );

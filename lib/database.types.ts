@@ -51,28 +51,37 @@ export type Database = {
 
       live_locations: {
         Row: {
-          id:         string;
-          racer_id:   string;
-          lat:        number;
-          lng:        number;
-          is_active:  boolean;
-          updated_at: string;
+          id:                 string;
+          racer_id:           string;
+          lat:                number;
+          lng:                number;
+          is_active:          boolean;
+          updated_at:         string;
+          session_distance_m: number;
+          last_lat:           number | null;
+          last_lng:           number | null;
         };
         Insert: {
-          id?:         string;
-          racer_id:    string;
-          lat:         number;
-          lng:         number;
-          is_active?:  boolean;
-          updated_at?: string;
+          id?:                 string;
+          racer_id:            string;
+          lat:                 number;
+          lng:                 number;
+          is_active?:          boolean;
+          updated_at?:         string;
+          session_distance_m?: number;
+          last_lat?:           number | null;
+          last_lng?:           number | null;
         };
         Update: {
-          id?:         string;
-          racer_id?:   string;
-          lat?:        number;
-          lng?:        number;
-          is_active?:  boolean;
-          updated_at?: string;
+          id?:                 string;
+          racer_id?:           string;
+          lat?:                number;
+          lng?:                number;
+          is_active?:          boolean;
+          updated_at?:         string;
+          session_distance_m?: number;
+          last_lat?:           number | null;
+          last_lng?:           number | null;
         };
         Relationships: [
           {

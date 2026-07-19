@@ -22,7 +22,7 @@ const MapView = dynamic(() => import("./MapView"), {
 export default function MapSection() {
   const { racer, initData }  = useAuth();
   const activeRacers         = useActiveRacers(5_000);
-  const { isActive, isLoading, error, toggle } = useLocationSharing(initData);
+  const { isActive, isLoading, error, distanceM, toggle } = useLocationSharing(initData);
 
   const racerCount = activeRacers.length;
 
@@ -58,6 +58,24 @@ export default function MapSection() {
 
         {/* ── Location toggle button ── */}
         <div className="absolute bottom-6 right-3 z-[1001] flex flex-col items-end gap-1.5">
+          {/* Distance badge — visible only when sharing is active */}
+          {isActive && (
+            <div
+              className="px-2.5 py-1 rounded bg-[rgba(6,6,8,0.85)] border border-[rgba(0,212,255,0.25)] flex items-center gap-1.5"
+              style={{ fontFamily: "var(--font-racing)" }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              <span className="text-[10px] tracking-wider">
+                <span className="neon-text-blue font-bold">
+                  {distanceM >= 1000
+                    ? `${(distanceM / 1000).toFixed(2)} km`
+                    : `${Math.round(distanceM)} m`}
+                </span>
+              </span>
+            </div>
+          )}
           <button
             onClick={toggle}
             disabled={isLoading}
