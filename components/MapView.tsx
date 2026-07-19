@@ -59,20 +59,24 @@ const popupStyle = (borderColor: string): React.CSSProperties => ({
   minWidth:    "120px",
 });
 
-/* ── Fly to real position on first load ── */
+/* ── Fly to real position on first load, only if permission already granted ── */
 function GeolocateView() {
   const map = useMap();
   useEffect(() => {
-    if (!navigator?.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => map.flyTo(
-        [pos.coords.latitude, pos.coords.longitude],
-        MAP_ZOOM,
-        { animate: true, duration: 1.2 },
-      ),
-      () => { /* denied — stay on Chișinău */ },
-      { timeout: 10_000, maximumAge: 0, enableHighAccuracy: false },
-    );
+    if (!navigator?.geolocation || !navigator?.permissions) return;
+    // Only fly silently — never trigger the permission prompt here
+    navigator.permissions.query({ name: "geolocation" as PermissionName }).then((result) => {
+      if (result.state !== "granted") return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => map.flyTo(
+          [pos.coords.latitude, pos.coords.longitude],
+          MAP_ZOOM,
+          { animate: true, duration: 1.2 },
+        ),
+        () => {},
+        { timeout: 10_000, maximumAge: 60_000, enableHighAccuracy: false },
+      );
+    }).catch(() => {});
   }, [map]);
   return null;
 }
