@@ -9,16 +9,27 @@ interface SharingState {
   toggle:    () => void;
 }
 
-async function postJSON(url: string, body: object): Promise<boolean> {
+interface PostResult {
+  ok:    boolean;
+  error: string | null;
+}
+
+async function postJSON(url: string, body: object): Promise<PostResult> {
   try {
     const res = await fetch(url, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(body),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (res.ok) return { ok: true, error: null };
+    let msg: string | null = null;
+    try {
+      const json = await res.json();
+      msg = json?.error ?? json?.message ?? null;
+    } catch {}
+    return { ok: false, error: msg ?? `Server error ${res.status}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Network error" };
   }
 }
 
@@ -38,26 +49,27 @@ export function useLocationSharing(initData: string | null): SharingState {
     postJSON("/api/location/update", { initData, lat, lng });
   }, [initData]);
 
-  const stopSharing = useCallback(async () => {
-    // 1. Stop watchPosition
+  // stopSharing with optional error message — pass a message to show it, omit to clear
+  const stopSharing = useCallback(async (displayError?: string) => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
-    // 2. Stop interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    // 3. Deactivate in DB
     if (initData && isActiveRef.current) {
       await postJSON("/api/location/toggle", { initData, action: "deactivate" });
     }
-    isActiveRef.current  = false;
+    isActiveRef.current   = false;
     isFirstPosRef.current = true;
-    lastPosRef.current   = null;
+    lastPosRef.current    = null;
     setIsActive(false);
-    setError(null);
+    // Only update error state if a message is provided; otherwise leave existing error intact
+    if (displayError !== undefined) {
+      setError(displayError);
+    }
   }, [initData]);
 
   const startSharing = useCallback(() => {
@@ -77,15 +89,15 @@ export function useLocationSharing(initData: string | null): SharingState {
         if (isFirstPosRef.current) {
           isFirstPosRef.current = false;
 
-          // Activate — first position
-          const ok = await postJSON("/api/location/toggle", {
+          const result = await postJSON("/api/location/toggle", {
             initData, lat, lng, action: "activate",
           });
 
-          if (!ok) {
-            setError("Eroare la activarea locației");
+          if (!result.ok) {
+            const msg = result.error ?? "Eroare la activarea locației";
             setIsLoading(false);
-            stopSharing();
+            // Stop sharing and pass the error so it stays visible
+            stopSharing(msg);
             return;
           }
 
@@ -100,7 +112,6 @@ export function useLocationSharing(initData: string | null): SharingState {
             }
           }, 10_000);
         } else {
-          // Subsequent positions — update only
           sendUpdate(lat, lng);
         }
       },
@@ -125,7 +136,6 @@ export function useLocationSharing(initData: string | null): SharingState {
     }
   }, [isActive, startSharing, stopSharing]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);

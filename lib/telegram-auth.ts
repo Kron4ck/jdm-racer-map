@@ -41,9 +41,9 @@ export function validateTelegramInitData(
 
     if (expectedHash !== receivedHash) return null;
 
-    // Optional: reject data older than 1 hour
+    // Reject data older than 24 hours
     const authDate = Number(params.get("auth_date") ?? 0);
-    if (Date.now() / 1000 - authDate > 3600) return null;
+    if (Date.now() / 1000 - authDate > 86_400) return null;
 
     const userRaw = params.get("user");
     if (!userRaw) return null;
