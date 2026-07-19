@@ -127,7 +127,7 @@ export default function ProfilePage() {
         </span>
         <div className="flex-1" />
         <span className="text-[9px] tracking-[0.2em] text-[rgba(0,212,255,0.4)] uppercase">
-          JDM Romania
+          JDM Moldova
         </span>
       </div>
 

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 
-const GROUP_NAME  = "JDM Romania";
+const GROUP_NAME  = "JDM Moldova";
 const MOCK_ONLINE = 14;
 
 function Avatar({ url, name }: { url: string | null; name: string | null }) {
