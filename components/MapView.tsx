@@ -8,32 +8,38 @@ import type { ActiveRacer } from "@/hooks/useActiveRacers";
 
 const MAP_CENTER: [number, number] = [47.0105, 28.8638];
 const MAP_ZOOM = 13;
+const MARKER_SIZE = 38;
 
-/* ── Neon marker factory ── */
-function createNeonMarker(color: string, glowColor: string): L.DivIcon {
+/* ── Avatar marker factory ── */
+function createAvatarMarker(
+  avatarUrl: string | null,
+  borderColor: string,
+  glowColor: string,
+): L.DivIcon {
+  const inner = avatarUrl
+    ? `<img src="${avatarUrl}"
+           width="${MARKER_SIZE}" height="${MARKER_SIZE}"
+           style="width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;object-fit:cover;border-radius:50%;display:block;" />`
+    : `<svg width="${MARKER_SIZE}" height="${MARKER_SIZE}" viewBox="0 0 38 38" fill="none">
+         <circle cx="19" cy="14" r="7" fill="${borderColor}" opacity="0.85"/>
+         <path d="M5 36c0-7.732 6.268-14 14-14s14 6.268 14 14"
+               stroke="${borderColor}" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+       </svg>`;
+
   return L.divIcon({
     className: "",
-    html: `
-      <div style="
-        width:14px;height:14px;border-radius:50%;
-        background:${color};
-        border:2px solid ${glowColor};
-        box-shadow:0 0 8px ${color},0 0 16px ${glowColor}66;
-        position:relative;
-      ">
-        <div style="
-          width:4px;height:4px;border-radius:50%;
-          background:#fff;opacity:0.8;
-          position:absolute;top:2px;left:2px;
-        "></div>
-      </div>`,
-    iconSize:   [14, 14],
-    iconAnchor: [7, 7],
+    html: `<div style="
+      width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;border-radius:50%;
+      border:2.5px solid ${borderColor};
+      box-shadow:0 0 8px ${glowColor},0 0 18px ${glowColor}55;
+      overflow:hidden;background:#0a0b14;
+      display:flex;align-items:center;justify-content:center;
+    ">${inner}</div>`,
+    iconSize:    [MARKER_SIZE, MARKER_SIZE],
+    iconAnchor:  [MARKER_SIZE / 2, MARKER_SIZE / 2],
+    popupAnchor: [0, -MARKER_SIZE / 2 - 6],
   });
 }
-
-const markerOther = createNeonMarker("#FF4500", "#FF6622"); // orange — other racers
-const markerSelf  = createNeonMarker("#00D4FF", "#33DDFF"); // blue   — own position
 
 /* ── Display name with nickname fallback ── */
 function racerLabel(r: ActiveRacer): string {
@@ -43,20 +49,20 @@ function racerLabel(r: ActiveRacer): string {
 /* ── Relative time helper ── */
 function timeAgo(iso: string): string {
   const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (secs < 60)  return `${secs}s ago`;
+  if (secs < 60)   return `${secs}s ago`;
   if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
   return `${Math.floor(secs / 3600)}h ago`;
 }
 
 /* ── Popup style ── */
 const popupStyle = (borderColor: string): React.CSSProperties => ({
-  background:  "#0e0f1c",
-  border:      `1px solid ${borderColor}`,
+  background:   "#0e0f1c",
+  border:       `1px solid ${borderColor}`,
   borderRadius: "6px",
-  padding:     "8px 12px",
-  color:       "#e2e8f0",
-  fontFamily:  "var(--font-racing), sans-serif",
-  minWidth:    "120px",
+  padding:      "8px 12px",
+  color:        "#e2e8f0",
+  fontFamily:   "var(--font-racing), sans-serif",
+  minWidth:     "140px",
 });
 
 /* ── Fly to real position on first load, only if permission already granted ── */
@@ -64,7 +70,6 @@ function GeolocateView() {
   const map = useMap();
   useEffect(() => {
     if (!navigator?.geolocation || !navigator?.permissions) return;
-    // Only fly silently — never trigger the permission prompt here
     navigator.permissions.query({ name: "geolocation" as PermissionName }).then((result) => {
       if (result.state !== "granted") return;
       navigator.geolocation.getCurrentPosition(
@@ -91,7 +96,7 @@ export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
     delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
   }, []);
 
-  const selfRacer  = activeRacers.find((r) => r.racer_id === myRacerId) ?? null;
+  const selfRacer   = activeRacers.find((r) => r.racer_id === myRacerId) ?? null;
   const otherRacers = activeRacers.filter((r) => r.racer_id !== myRacerId);
 
   return (
@@ -112,20 +117,39 @@ export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
 
         <GeolocateView />
 
-        {/* Other active racers — orange markers */}
+        {/* Other active racers — orange border avatar */}
         {otherRacers.map((r) => (
-          <Marker key={r.racer_id} position={[r.lat, r.lng]} icon={markerOther}>
+          <Marker
+            key={r.racer_id}
+            position={[r.lat, r.lng]}
+            icon={createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622")}
+          >
             <Popup closeButton={false}>
               <div style={popupStyle("rgba(255,69,0,0.4)")}>
-                <div style={{ color: "#FF4500", fontWeight: 700, fontSize: "14px" }}>
-                  {racerLabel(r)}
-                </div>
-                {(r.car_make || r.car_model) && (
-                  <div style={{ color: "rgba(255,100,0,0.75)", fontSize: "10px", marginTop: "2px", letterSpacing: "0.06em" }}>
-                    {[r.car_make, r.car_model].filter(Boolean).join(" ")}
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  {r.avatar_url && (
+                    <img
+                      src={r.avatar_url}
+                      alt={racerLabel(r)}
+                      width={32} height={32}
+                      style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover",
+                               border: "1px solid rgba(255,69,0,0.5)", flexShrink: 0 }}
+                    />
+                  )}
+                  <div>
+                    <div style={{ color: "#FF4500", fontWeight: 700, fontSize: "13px" }}>
+                      {racerLabel(r)}
+                    </div>
+                    {(r.car_make || r.car_model) && (
+                      <div style={{ color: "rgba(255,100,0,0.75)", fontSize: "10px",
+                                    marginTop: "2px", letterSpacing: "0.06em" }}>
+                        {[r.car_make, r.car_model].filter(Boolean).join(" ")}
+                      </div>
+                    )}
                   </div>
-                )}
-                <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
+                </div>
+                <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px",
+                              marginTop: "6px", letterSpacing: "0.08em" }}>
                   {timeAgo(r.updated_at)}
                 </div>
               </div>
@@ -133,22 +157,40 @@ export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
           </Marker>
         ))}
 
-        {/* Self — blue marker + accuracy circle */}
+        {/* Self — blue border avatar + accuracy circle */}
         {selfRacer && (
           <>
-            <Marker position={[selfRacer.lat, selfRacer.lng]} icon={markerSelf}>
+            <Marker
+              position={[selfRacer.lat, selfRacer.lng]}
+              icon={createAvatarMarker(selfRacer.avatar_url, "#00D4FF", "#33DDFF")}
+            >
               <Popup closeButton={false}>
                 <div style={popupStyle("rgba(0,212,255,0.4)")}>
-                  <div style={{ color: "#00D4FF", fontWeight: 700, fontSize: "14px" }}>
-                    {racerLabel(selfRacer)}
-                  </div>
-                  {(selfRacer.car_make || selfRacer.car_model) && (
-                    <div style={{ color: "rgba(0,212,255,0.6)", fontSize: "10px", marginTop: "2px", letterSpacing: "0.06em" }}>
-                      {[selfRacer.car_make, selfRacer.car_model].filter(Boolean).join(" ")}
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    {selfRacer.avatar_url && (
+                      <img
+                        src={selfRacer.avatar_url}
+                        alt={racerLabel(selfRacer)}
+                        width={32} height={32}
+                        style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover",
+                                 border: "1px solid rgba(0,212,255,0.5)", flexShrink: 0 }}
+                      />
+                    )}
+                    <div>
+                      <div style={{ color: "#00D4FF", fontWeight: 700, fontSize: "13px" }}>
+                        {racerLabel(selfRacer)}
+                      </div>
+                      {(selfRacer.car_make || selfRacer.car_model) && (
+                        <div style={{ color: "rgba(0,212,255,0.6)", fontSize: "10px",
+                                      marginTop: "2px", letterSpacing: "0.06em" }}>
+                          {[selfRacer.car_make, selfRacer.car_model].filter(Boolean).join(" ")}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
-                    LIVE
+                  </div>
+                  <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px",
+                                marginTop: "6px", letterSpacing: "0.08em" }}>
+                    ● LIVE
                   </div>
                 </div>
               </Popup>
