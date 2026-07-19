@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import MapSection from "@/components/MapSection";
 import BottomNav, { type Tab } from "@/components/BottomNav";
 import RacersTab from "@/components/tabs/RacersTab";
+import LeaderboardTab from "@/components/tabs/LeaderboardTab";
 import ProfileTab from "@/components/tabs/ProfileTab";
 
 export default function DashboardPage() {
@@ -21,8 +22,9 @@ export default function DashboardPage() {
 
         {activeTab !== "map" && (
           <div className="absolute inset-0 z-[2000] bg-[#060608] flex flex-col overflow-hidden">
-            {activeTab === "racers"  && <RacersTab />}
-            {activeTab === "profile" && <ProfileTab />}
+            {activeTab === "racers"       && <RacersTab />}
+            {activeTab === "leaderboard"  && <LeaderboardTab />}
+            {activeTab === "profile"      && <ProfileTab />}
           </div>
         )}
       </div>

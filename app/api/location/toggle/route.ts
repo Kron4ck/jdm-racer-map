@@ -58,6 +58,28 @@ export async function POST(req: NextRequest) {
       );
       if (error) throw error;
     } else {
+      // Fetch session distance before deactivating
+      const { data: loc } = await db
+        .from("live_locations")
+        .select("session_distance_m")
+        .eq("racer_id", racer.id)
+        .single();
+
+      // Accumulate into lifetime total
+      if (loc && loc.session_distance_m > 0) {
+        const { data: racerRow } = await db
+          .from("racers")
+          .select("total_distance_m")
+          .eq("id", racer.id)
+          .single();
+
+        const newTotal = (racerRow?.total_distance_m ?? 0) + loc.session_distance_m;
+        await db
+          .from("racers")
+          .update({ total_distance_m: newTotal })
+          .eq("id", racer.id);
+      }
+
       const { error } = await db
         .from("live_locations")
         .update({ is_active: false })

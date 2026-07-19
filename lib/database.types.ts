@@ -22,6 +22,7 @@ export type Database = {
           car_model:                     string | null;
           car_photo_url:                 string | null;
           convoy_notifications_enabled:  boolean;
+          total_distance_m:              number;
         };
         Insert: {
           id?:                             string;
@@ -35,6 +36,7 @@ export type Database = {
           car_model?:                      string | null;
           car_photo_url?:                  string | null;
           convoy_notifications_enabled?:   boolean;
+          total_distance_m?:               number;
         };
         Update: {
           id?:                             string;
@@ -48,6 +50,7 @@ export type Database = {
           car_model?:                      string | null;
           car_photo_url?:                  string | null;
           convoy_notifications_enabled?:   boolean;
+          total_distance_m?:               number;
         };
         Relationships: [];
       };
