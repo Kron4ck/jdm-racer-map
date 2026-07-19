@@ -3,9 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { useActiveRacers } from "@/hooks/useActiveRacers";
 
-const GROUP_NAME  = "JDM Moldova";
-const MOCK_ONLINE = 14;
+const GROUP_NAME = "JDM Moldova";
 
 function Avatar({ url, name }: { url: string | null; name: string | null }) {
   const initials = (name ?? "?")
@@ -40,6 +40,7 @@ function Avatar({ url, name }: { url: string | null; name: string | null }) {
 
 export default function Header() {
   const { racer, loading } = useAuth();
+  const activeRacers = useActiveRacers(5_000);
 
   const displayLabel = loading
     ? "…"
@@ -96,8 +97,8 @@ export default function Header() {
             className="text-white text-xs font-semibold tracking-wider"
             style={{ fontFamily: "var(--font-racing)" }}
           >
-            <span className="neon-text-blue font-bold">{MOCK_ONLINE}</span>
-            <span className="text-[rgba(226,232,240,0.5)] ml-1">ONLINE</span>
+            <span className="neon-text-blue font-bold">{activeRacers.length}</span>
+            <span className="text-[rgba(226,232,240,0.5)] ml-1">PE HARTĂ</span>
           </span>
         </div>
       </div>
