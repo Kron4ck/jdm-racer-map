@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Barlow_Condensed, Barlow } from "next/font/google";
 import Script from "next/script";
+import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
 const barlowCondensed = Barlow_Condensed({
@@ -46,7 +47,9 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
       </head>
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

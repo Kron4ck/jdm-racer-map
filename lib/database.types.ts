@@ -34,6 +34,7 @@ export type Database = {
           avatar_url?:   string | null;
           created_at?:   string;
         };
+        Relationships: [];
       };
 
       live_locations: {
@@ -61,29 +62,49 @@ export type Database = {
           is_active?:  boolean;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "live_locations_racer_id_fkey";
+            columns: ["racer_id"];
+            isOneToOne: true;
+            referencedRelation: "racers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
 
       speed_records: {
         Row: {
-          id:               string;
-          racer_id:         string;
-          best_speed_kmh:   number;
-          recorded_at:      string;
+          id:             string;
+          racer_id:       string;
+          best_speed_kmh: number;
+          recorded_at:    string;
         };
         Insert: {
-          id?:               string;
-          racer_id:          string;
-          best_speed_kmh:    number;
-          recorded_at?:      string;
+          id?:             string;
+          racer_id:        string;
+          best_speed_kmh:  number;
+          recorded_at?:    string;
         };
         Update: {
-          id?:               string;
-          racer_id?:         string;
-          best_speed_kmh?:   number;
-          recorded_at?:      string;
+          id?:             string;
+          racer_id?:       string;
+          best_speed_kmh?: number;
+          recorded_at?:    string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "speed_records_racer_id_fkey";
+            columns: ["racer_id"];
+            isOneToOne: false;
+            referencedRelation: "racers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
+
+    Views:          Record<never, never>;
 
     Functions: {
       current_telegram_id: {
@@ -96,6 +117,7 @@ export type Database = {
       };
     };
 
-    Enums: Record<never, never>;
+    Enums:          Record<never, never>;
+    CompositeTypes: Record<never, never>;
   };
 };
