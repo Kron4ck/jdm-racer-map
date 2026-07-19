@@ -54,6 +54,28 @@ export default function MapSection() {
   const { nearbyIds, toasts, dismiss } = useConvoy(racer?.id ?? null, initData);
   const { pois, refresh: refreshPOIs } = usePOI();
 
+  /* ── Reaction toast ── */
+  const [reactionToast, setReactionToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function sendReaction(targetRacerId: string, message: string) {
+    if (!initData) return;
+    fetch("/api/reaction/send", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ initData, target_racer_id: targetRacerId, message }),
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok) {
+          setReactionToast(true);
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = setTimeout(() => setReactionToast(false), 2_000);
+        }
+      })
+      .catch(() => {});
+  }
+
   /* ── Flash cooldown ── */
   const [flashCooldown, setFlashCooldown] = useState(0);
   const [flashLoading, setFlashLoading]   = useState(false);
@@ -176,6 +198,7 @@ export default function MapSection() {
           addMode={addMode}
           onMapClick={handleMapClick}
           onDeletePOI={deletePOI}
+          onSendReaction={sendReaction}
         />
 
         {/* ── HUD: coords ── */}
@@ -362,6 +385,27 @@ export default function MapSection() {
             </div>
           )}
         </div>
+
+        {/* ── Reaction "Trimis!" toast ── */}
+        {reactionToast && (
+          <div
+            className="absolute top-10 left-1/2 -translate-x-1/2 z-[2001] pointer-events-none px-3 py-1.5 rounded"
+            style={{
+              background:    "rgba(0,212,255,0.15)",
+              border:        "1px solid rgba(0,212,255,0.4)",
+              fontFamily:    "var(--font-racing), sans-serif",
+              fontSize:      "11px",
+              fontWeight:    700,
+              color:         "#00D4FF",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              whiteSpace:    "nowrap",
+              animation:     "slideDown 0.2s ease-out",
+            }}
+          >
+            ✓ Trimis!
+          </div>
+        )}
 
         {/* ── Convoy toasts ── */}
         <ConvoyToastContainer toasts={toasts} dismiss={dismiss} />

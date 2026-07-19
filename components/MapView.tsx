@@ -248,6 +248,15 @@ function timeAgo(iso: string): string {
   return `${Math.floor(secs / 3600)}h ago`;
 }
 
+/* ── Predefined reactions ── */
+const REACTIONS = [
+  { label: "🔥",          text: "🔥" },
+  { label: "👋 Salut",    text: "👋 Salut!" },
+  { label: "🏁 Vin!",     text: "🏁 Vin!" },
+  { label: "📍 Unde ești?", text: "📍 Unde ești?" },
+  { label: "💨 Let's go", text: "💨 Let's go!" },
+];
+
 /* ── Popup style ── */
 const popupStyle = (borderColor: string): React.CSSProperties => ({
   background:   "#0e0f1c",
@@ -282,13 +291,16 @@ function GeolocateView() {
 
 /* ── Markers layer — switches between dot and avatar based on zoom ── */
 interface MarkersProps {
-  otherRacers: ActiveRacer[];
-  selfRacer:   ActiveRacer | null;
-  nearbyIds?:  Set<string>;
+  otherRacers:     ActiveRacer[];
+  selfRacer:       ActiveRacer | null;
+  nearbyIds?:      Set<string>;
+  onSendReaction?: (targetRacerId: string, message: string) => void;
 }
 
-function MarkersLayer({ otherRacers, selfRacer, nearbyIds }: MarkersProps) {
+function MarkersLayer({ otherRacers, selfRacer, nearbyIds, onSendReaction }: MarkersProps) {
   const [zoom, setZoom] = useState(MAP_ZOOM);
+  /* cooldown per racer: Set of racer_ids that are in 5s cooldown */
+  const [cooldowns, setCooldowns] = useState<Set<string>>(new Set());
 
   useMapEvents({
     zoom: (e) => setZoom(e.target.getZoom()),
@@ -296,12 +308,22 @@ function MarkersLayer({ otherRacers, selfRacer, nearbyIds }: MarkersProps) {
 
   const showAvatar = zoom >= AVATAR_ZOOM_THRESHOLD;
 
+  function handleReaction(racerId: string, message: string) {
+    if (cooldowns.has(racerId) || !onSendReaction) return;
+    onSendReaction(racerId, message);
+    setCooldowns((prev) => new Set(prev).add(racerId));
+    setTimeout(() => {
+      setCooldowns((prev) => { const n = new Set(prev); n.delete(racerId); return n; });
+    }, 5_000);
+  }
+
   return (
     <>
       {/* Other active racers */}
       {otherRacers.map((r) => {
-        const inConvoy = nearbyIds?.has(r.racer_id) ?? false;
-        const flashing = isFlashing(r.flash_at);
+        const inConvoy  = nearbyIds?.has(r.racer_id) ?? false;
+        const flashing  = isFlashing(r.flash_at);
+        const onCooldown = cooldowns.has(r.racer_id);
         const icon = showAvatar
           ? createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622", inConvoy, flashing)
           : createNeonMarker("#FF4500", "#FF6622", inConvoy, flashing);
@@ -332,6 +354,39 @@ function MarkersLayer({ otherRacers, selfRacer, nearbyIds }: MarkersProps) {
                               marginTop: "6px", letterSpacing: "0.08em" }}>
                   {timeAgo(r.updated_at)}
                 </div>
+                {/* Reaction buttons */}
+                {onSendReaction && (
+                  <div style={{
+                    marginTop:  "8px",
+                    paddingTop: "8px",
+                    borderTop:  "1px solid rgba(255,69,0,0.15)",
+                    display:    "flex",
+                    flexWrap:   "wrap",
+                    gap:        "4px",
+                  }}>
+                    {REACTIONS.map((rx) => (
+                      <button
+                        key={rx.text}
+                        onClick={() => handleReaction(r.racer_id, rx.text)}
+                        disabled={onCooldown}
+                        style={{
+                          background:    onCooldown ? "rgba(255,69,0,0.04)" : "rgba(255,69,0,0.1)",
+                          border:        `1px solid ${onCooldown ? "rgba(255,69,0,0.15)" : "rgba(255,69,0,0.35)"}`,
+                          borderRadius:  "3px",
+                          color:         onCooldown ? "rgba(255,69,0,0.3)" : "rgba(255,120,0,0.9)",
+                          fontSize:      "10px",
+                          padding:       "2px 6px",
+                          cursor:        onCooldown ? "not-allowed" : "pointer",
+                          fontFamily:    "var(--font-hud), sans-serif",
+                          transition:    "all 0.15s",
+                          whiteSpace:    "nowrap",
+                        }}
+                      >
+                        {rx.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </Popup>
           </Marker>
@@ -391,25 +446,27 @@ function MarkersLayer({ otherRacers, selfRacer, nearbyIds }: MarkersProps) {
 }
 
 interface MapViewProps {
-  activeRacers: ActiveRacer[];
-  myRacerId:    string | null;
-  nearbyIds?:   Set<string>;
-  pois?:        POI[];
-  isAdmin?:     boolean;
-  addMode?:     boolean;
-  onMapClick?:  (lat: number, lng: number) => void;
-  onDeletePOI?: (id: string) => void;
+  activeRacers:    ActiveRacer[];
+  myRacerId:       string | null;
+  nearbyIds?:      Set<string>;
+  pois?:           POI[];
+  isAdmin?:        boolean;
+  addMode?:        boolean;
+  onMapClick?:     (lat: number, lng: number) => void;
+  onDeletePOI?:    (id: string) => void;
+  onSendReaction?: (targetRacerId: string, message: string) => void;
 }
 
 export default function MapView({
   activeRacers,
   myRacerId,
   nearbyIds,
-  pois        = [],
-  isAdmin     = false,
-  addMode     = false,
-  onMapClick  = () => {},
-  onDeletePOI = () => {},
+  pois           = [],
+  isAdmin        = false,
+  addMode        = false,
+  onMapClick     = () => {},
+  onDeletePOI    = () => {},
+  onSendReaction,
 }: MapViewProps) {
   useEffect(() => {
     delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -434,7 +491,7 @@ export default function MapView({
           maxZoom={19}
         />
         <GeolocateView />
-        <MarkersLayer otherRacers={otherRacers} selfRacer={selfRacer} nearbyIds={nearbyIds} />
+        <MarkersLayer otherRacers={otherRacers} selfRacer={selfRacer} nearbyIds={nearbyIds} onSendReaction={onSendReaction} />
         <POILayer pois={pois} isAdmin={isAdmin} onDeletePOI={onDeletePOI} />
         <MapClickHandler enabled={addMode} onMapClick={onMapClick} />
       </MapContainer>
