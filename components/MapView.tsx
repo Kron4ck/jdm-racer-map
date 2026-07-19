@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { ActiveRacer } from "@/hooks/useActiveRacers";
@@ -9,8 +9,33 @@ import type { ActiveRacer } from "@/hooks/useActiveRacers";
 const MAP_CENTER: [number, number] = [47.0105, 28.8638];
 const MAP_ZOOM = 13;
 const MARKER_SIZE = 38;
+const AVATAR_ZOOM_THRESHOLD = 16; // show avatar only at zoom >= 16
 
-/* ── Avatar marker factory ── */
+/* ── Simple neon dot marker (used at low zoom) ── */
+function createNeonMarker(color: string, glowColor: string, convoy = false): L.DivIcon {
+  const ring = convoy
+    ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:2px solid ${color};animation:convoy-pulse 1.5s ease-out infinite;pointer-events:none;"></div>`
+    : "";
+  return L.divIcon({
+    className: "",
+    html: `<div style="position:relative;width:14px;height:14px;">
+      ${ring}
+      <div style="
+        width:14px;height:14px;border-radius:50%;
+        background:${color};border:2px solid ${glowColor};
+        box-shadow:0 0 8px ${color},0 0 16px ${glowColor}66${convoy ? `,0 0 24px ${glowColor}` : ""};
+        position:relative;
+      ">
+        <div style="width:4px;height:4px;border-radius:50%;background:#fff;opacity:0.8;position:absolute;top:2px;left:2px;"></div>
+      </div>
+    </div>`,
+    iconSize:    [14, 14],
+    iconAnchor:  [7, 7],
+    popupAnchor: [0, -10],
+  });
+}
+
+/* ── Avatar marker (used at high zoom) ── */
 function createAvatarMarker(
   avatarUrl:   string | null,
   borderColor: string,
@@ -18,17 +43,11 @@ function createAvatarMarker(
   convoy:      boolean = false,
 ): L.DivIcon {
   const convoyRing = convoy
-    ? `<div style="
-        position:absolute;inset:-5px;border-radius:50%;
-        border:2px solid ${borderColor};
-        animation:convoy-pulse 1.5s ease-out infinite;
-        pointer-events:none;
-      "></div>`
+    ? `<div style="position:absolute;inset:-5px;border-radius:50%;border:2px solid ${borderColor};animation:convoy-pulse 1.5s ease-out infinite;pointer-events:none;"></div>`
     : "";
 
   const inner = avatarUrl
-    ? `<img src="${avatarUrl}"
-           width="${MARKER_SIZE}" height="${MARKER_SIZE}"
+    ? `<img src="${avatarUrl}" width="${MARKER_SIZE}" height="${MARKER_SIZE}"
            style="width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;object-fit:cover;border-radius:50%;display:block;" />`
     : `<svg width="${MARKER_SIZE}" height="${MARKER_SIZE}" viewBox="0 0 38 38" fill="none">
          <circle cx="19" cy="14" r="7" fill="${borderColor}" opacity="0.85"/>
@@ -99,6 +118,115 @@ function GeolocateView() {
   return null;
 }
 
+/* ── Markers layer — switches between dot and avatar based on zoom ── */
+interface MarkersProps {
+  otherRacers: ActiveRacer[];
+  selfRacer:   ActiveRacer | null;
+  nearbyIds?:  Set<string>;
+}
+
+function MarkersLayer({ otherRacers, selfRacer, nearbyIds }: MarkersProps) {
+  const [zoom, setZoom] = useState(MAP_ZOOM);
+
+  useMapEvents({
+    zoom: (e) => setZoom(e.target.getZoom()),
+  });
+
+  const showAvatar = zoom >= AVATAR_ZOOM_THRESHOLD;
+
+  return (
+    <>
+      {/* Other active racers */}
+      {otherRacers.map((r) => {
+        const inConvoy = nearbyIds?.has(r.racer_id) ?? false;
+        const icon = showAvatar
+          ? createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622", inConvoy)
+          : createNeonMarker("#FF4500", "#FF6622", inConvoy);
+
+        return (
+          <Marker key={r.racer_id} position={[r.lat, r.lng]} icon={icon}>
+            <Popup closeButton={false}>
+              <div style={popupStyle("rgba(255,69,0,0.4)")}>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  {r.avatar_url && (
+                    <img src={r.avatar_url} alt={racerLabel(r)} width={32} height={32}
+                      style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover",
+                               border: "1px solid rgba(255,69,0,0.5)", flexShrink: 0 }} />
+                  )}
+                  <div>
+                    <div style={{ color: "#FF4500", fontWeight: 700, fontSize: "13px" }}>
+                      {racerLabel(r)}
+                    </div>
+                    {(r.car_make || r.car_model) && (
+                      <div style={{ color: "rgba(255,100,0,0.75)", fontSize: "10px",
+                                    marginTop: "2px", letterSpacing: "0.06em" }}>
+                        {[r.car_make, r.car_model].filter(Boolean).join(" ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px",
+                              marginTop: "6px", letterSpacing: "0.08em" }}>
+                  {timeAgo(r.updated_at)}
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+
+      {/* Self — blue marker + accuracy circle */}
+      {selfRacer && (
+        <>
+          <Marker
+            position={[selfRacer.lat, selfRacer.lng]}
+            icon={showAvatar
+              ? createAvatarMarker(selfRacer.avatar_url, "#00D4FF", "#33DDFF")
+              : createNeonMarker("#00D4FF", "#33DDFF")}
+          >
+            <Popup closeButton={false}>
+              <div style={popupStyle("rgba(0,212,255,0.4)")}>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  {selfRacer.avatar_url && (
+                    <img src={selfRacer.avatar_url} alt={racerLabel(selfRacer)} width={32} height={32}
+                      style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover",
+                               border: "1px solid rgba(0,212,255,0.5)", flexShrink: 0 }} />
+                  )}
+                  <div>
+                    <div style={{ color: "#00D4FF", fontWeight: 700, fontSize: "13px" }}>
+                      {racerLabel(selfRacer)}
+                    </div>
+                    {(selfRacer.car_make || selfRacer.car_model) && (
+                      <div style={{ color: "rgba(0,212,255,0.6)", fontSize: "10px",
+                                    marginTop: "2px", letterSpacing: "0.06em" }}>
+                        {[selfRacer.car_make, selfRacer.car_model].filter(Boolean).join(" ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px",
+                              marginTop: "6px", letterSpacing: "0.08em" }}>
+                  ● LIVE
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+          <Circle
+            center={[selfRacer.lat, selfRacer.lng]}
+            radius={150}
+            pathOptions={{
+              color:       "rgba(0,212,255,0.4)",
+              fillColor:   "rgba(0,212,255,0.06)",
+              fillOpacity: 1,
+              weight:      1,
+            }}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
 interface MapViewProps {
   activeRacers: ActiveRacer[];
   myRacerId:    string | null;
@@ -128,99 +256,8 @@ export default function MapView({ activeRacers, myRacerId, nearbyIds }: MapViewP
           subdomains="abcd"
           maxZoom={19}
         />
-
         <GeolocateView />
-
-        {/* Other active racers — orange border avatar */}
-        {otherRacers.map((r) => (
-          <Marker
-            key={r.racer_id}
-            position={[r.lat, r.lng]}
-            icon={createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622", nearbyIds?.has(r.racer_id))}
-          >
-            <Popup closeButton={false}>
-              <div style={popupStyle("rgba(255,69,0,0.4)")}>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  {r.avatar_url && (
-                    <img
-                      src={r.avatar_url}
-                      alt={racerLabel(r)}
-                      width={32} height={32}
-                      style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover",
-                               border: "1px solid rgba(255,69,0,0.5)", flexShrink: 0 }}
-                    />
-                  )}
-                  <div>
-                    <div style={{ color: "#FF4500", fontWeight: 700, fontSize: "13px" }}>
-                      {racerLabel(r)}
-                    </div>
-                    {(r.car_make || r.car_model) && (
-                      <div style={{ color: "rgba(255,100,0,0.75)", fontSize: "10px",
-                                    marginTop: "2px", letterSpacing: "0.06em" }}>
-                        {[r.car_make, r.car_model].filter(Boolean).join(" ")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px",
-                              marginTop: "6px", letterSpacing: "0.08em" }}>
-                  {timeAgo(r.updated_at)}
-                </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* Self — blue border avatar + accuracy circle */}
-        {selfRacer && (
-          <>
-            <Marker
-              position={[selfRacer.lat, selfRacer.lng]}
-              icon={createAvatarMarker(selfRacer.avatar_url, "#00D4FF", "#33DDFF")}
-            >
-              <Popup closeButton={false}>
-                <div style={popupStyle("rgba(0,212,255,0.4)")}>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    {selfRacer.avatar_url && (
-                      <img
-                        src={selfRacer.avatar_url}
-                        alt={racerLabel(selfRacer)}
-                        width={32} height={32}
-                        style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover",
-                                 border: "1px solid rgba(0,212,255,0.5)", flexShrink: 0 }}
-                      />
-                    )}
-                    <div>
-                      <div style={{ color: "#00D4FF", fontWeight: 700, fontSize: "13px" }}>
-                        {racerLabel(selfRacer)}
-                      </div>
-                      {(selfRacer.car_make || selfRacer.car_model) && (
-                        <div style={{ color: "rgba(0,212,255,0.6)", fontSize: "10px",
-                                      marginTop: "2px", letterSpacing: "0.06em" }}>
-                          {[selfRacer.car_make, selfRacer.car_model].filter(Boolean).join(" ")}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px",
-                                marginTop: "6px", letterSpacing: "0.08em" }}>
-                    ● LIVE
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-            <Circle
-              center={[selfRacer.lat, selfRacer.lng]}
-              radius={150}
-              pathOptions={{
-                color:       "rgba(0,212,255,0.4)",
-                fillColor:   "rgba(0,212,255,0.06)",
-                fillOpacity: 1,
-                weight:      1,
-              }}
-            />
-          </>
-        )}
+        <MarkersLayer otherRacers={otherRacers} selfRacer={selfRacer} nearbyIds={nearbyIds} />
       </MapContainer>
     </div>
   );
