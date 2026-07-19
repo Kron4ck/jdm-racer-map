@@ -12,10 +12,20 @@ const MARKER_SIZE = 38;
 
 /* ── Avatar marker factory ── */
 function createAvatarMarker(
-  avatarUrl: string | null,
+  avatarUrl:   string | null,
   borderColor: string,
-  glowColor: string,
+  glowColor:   string,
+  convoy:      boolean = false,
 ): L.DivIcon {
+  const convoyRing = convoy
+    ? `<div style="
+        position:absolute;inset:-5px;border-radius:50%;
+        border:2px solid ${borderColor};
+        animation:convoy-pulse 1.5s ease-out infinite;
+        pointer-events:none;
+      "></div>`
+    : "";
+
   const inner = avatarUrl
     ? `<img src="${avatarUrl}"
            width="${MARKER_SIZE}" height="${MARKER_SIZE}"
@@ -28,13 +38,16 @@ function createAvatarMarker(
 
   return L.divIcon({
     className: "",
-    html: `<div style="
-      width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;border-radius:50%;
-      border:2.5px solid ${borderColor};
-      box-shadow:0 0 8px ${glowColor},0 0 18px ${glowColor}55;
-      overflow:hidden;background:#0a0b14;
-      display:flex;align-items:center;justify-content:center;
-    ">${inner}</div>`,
+    html: `<div style="position:relative;width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;">
+      ${convoyRing}
+      <div style="
+        width:${MARKER_SIZE}px;height:${MARKER_SIZE}px;border-radius:50%;
+        border:2.5px solid ${borderColor};
+        box-shadow:0 0 8px ${glowColor},0 0 18px ${glowColor}55${convoy ? `,0 0 30px ${glowColor}88` : ""};
+        overflow:hidden;background:#0a0b14;
+        display:flex;align-items:center;justify-content:center;
+      ">${inner}</div>
+    </div>`,
     iconSize:    [MARKER_SIZE, MARKER_SIZE],
     iconAnchor:  [MARKER_SIZE / 2, MARKER_SIZE / 2],
     popupAnchor: [0, -MARKER_SIZE / 2 - 6],
@@ -89,9 +102,10 @@ function GeolocateView() {
 interface MapViewProps {
   activeRacers: ActiveRacer[];
   myRacerId:    string | null;
+  nearbyIds?:   Set<string>;
 }
 
-export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
+export default function MapView({ activeRacers, myRacerId, nearbyIds }: MapViewProps) {
   useEffect(() => {
     delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
   }, []);
@@ -122,7 +136,7 @@ export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
           <Marker
             key={r.racer_id}
             position={[r.lat, r.lng]}
-            icon={createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622")}
+            icon={createAvatarMarker(r.avatar_url, "#FF4500", "#FF6622", nearbyIds?.has(r.racer_id))}
           >
             <Popup closeButton={false}>
               <div style={popupStyle("rgba(255,69,0,0.4)")}>

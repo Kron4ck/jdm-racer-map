@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useAuth } from "@/components/AuthProvider";
 import { useActiveRacers } from "@/hooks/useActiveRacers";
 import { useLocationSharing } from "@/hooks/useLocationSharing";
+import { useConvoy } from "@/hooks/useConvoy";
+import ConvoyToastContainer from "@/components/ConvoyToast";
 
 const MapView = dynamic(() => import("./MapView"), {
   ssr: false,
@@ -23,6 +25,7 @@ export default function MapSection() {
   const { racer, initData }  = useAuth();
   const activeRacers         = useActiveRacers(5_000);
   const { isActive, isLoading, error, distanceM, toggle } = useLocationSharing(initData);
+  const { nearbyIds, toasts, dismiss } = useConvoy(racer?.id ?? null, initData);
 
   const racerCount = activeRacers.length;
 
@@ -30,7 +33,7 @@ export default function MapSection() {
     <main className="flex-1 min-h-0 px-3 pb-3">
       <div className="w-full h-full rounded-lg overflow-hidden neon-border relative">
 
-        <MapView activeRacers={activeRacers} myRacerId={racer?.id ?? null} />
+        <MapView activeRacers={activeRacers} myRacerId={racer?.id ?? null} nearbyIds={nearbyIds} />
 
         {/* ── HUD: coords ── */}
         <div
@@ -124,6 +127,9 @@ export default function MapSection() {
             </div>
           )}
         </div>
+
+        {/* ── Convoy toasts ── */}
+        <ConvoyToastContainer toasts={toasts} dismiss={dismiss} />
 
         {/* Corner brackets */}
         <svg className="absolute top-1.5 left-1.5 z-[1001] pointer-events-none opacity-50"

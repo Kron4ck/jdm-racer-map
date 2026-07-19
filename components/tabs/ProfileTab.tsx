@@ -40,13 +40,15 @@ function InputField({
 export default function ProfileTab() {
   const { racer, initData, loading } = useAuth();
 
-  const [nickname,  setNickname]  = useState("");
-  const [carMake,   setCarMake]   = useState("");
-  const [carModel,  setCarModel]  = useState("");
-  const [fetching,  setFetching]  = useState(true);
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
-  const [saved,     setSaved]     = useState(false);
+  const [nickname,        setNickname]        = useState("");
+  const [carMake,         setCarMake]         = useState("");
+  const [carModel,        setCarModel]        = useState("");
+  const [convoyEnabled,   setConvoyEnabled]   = useState(true);
+  const [convoyToggling,  setConvoyToggling]  = useState(false);
+  const [fetching,        setFetching]        = useState(true);
+  const [saving,          setSaving]          = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
+  const [saved,           setSaved]           = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -59,11 +61,32 @@ export default function ProfileTab() {
           setNickname(data.racer.nickname  ?? "");
           setCarMake(data.racer.car_make   ?? "");
           setCarModel(data.racer.car_model ?? "");
+          setConvoyEnabled(data.racer.convoy_notifications_enabled ?? true);
         }
       })
       .catch(() => {})
       .finally(() => setFetching(false));
   }, [initData, loading]);
+
+  const handleConvoyToggle = async () => {
+    if (!initData || convoyToggling) return;
+    const next = !convoyEnabled;
+    setConvoyEnabled(next);
+    setConvoyToggling(true);
+    try {
+      await fetch("/api/profile", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ initData, convoy_notifications_enabled: next }),
+      });
+      // Notify convoy hook in MapSection about the change
+      window.dispatchEvent(new CustomEvent("convoy-settings-changed", { detail: { enabled: next } }));
+    } catch {
+      setConvoyEnabled(!next); // revert on error
+    } finally {
+      setConvoyToggling(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,6 +197,42 @@ export default function ProfileTab() {
               placeholder="Silvia S15, Supra, RX-7…"
               maxLength={30}
             />
+          </div>
+
+          {/* Convoy Mode toggle */}
+          <div className="rounded-lg border border-[rgba(0,212,255,0.12)] bg-[rgba(6,6,8,0.5)] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[9px] tracking-[0.2em] uppercase text-[rgba(255,69,0,0.7)] mb-1">
+                  Convoy Mode
+                </div>
+                <div className="text-[11px] text-[rgba(226,232,240,0.5)] tracking-wide leading-snug">
+                  Primești notificare când un racer<br />e la &lt;100m de tine
+                </div>
+              </div>
+              {/* Toggle switch */}
+              <button
+                type="button"
+                onClick={handleConvoyToggle}
+                disabled={convoyToggling}
+                className="relative shrink-0 w-11 h-6 rounded-full transition-all duration-300"
+                style={{
+                  background:  convoyEnabled ? "rgba(0,212,255,0.25)" : "rgba(226,232,240,0.08)",
+                  border:      `1px solid ${convoyEnabled ? "rgba(0,212,255,0.6)" : "rgba(226,232,240,0.2)"}`,
+                  boxShadow:   convoyEnabled ? "0 0 10px rgba(0,212,255,0.3)" : "none",
+                  opacity:     convoyToggling ? 0.6 : 1,
+                }}
+              >
+                <span
+                  className="absolute top-0.5 w-4 h-4 rounded-full transition-all duration-300"
+                  style={{
+                    left:       convoyEnabled ? "calc(100% - 18px)" : "2px",
+                    background: convoyEnabled ? "#00D4FF" : "rgba(226,232,240,0.4)",
+                    boxShadow:  convoyEnabled ? "0 0 6px rgba(0,212,255,0.8)" : "none",
+                  }}
+                />
+              </button>
+            </div>
           </div>
 
           {error && (
