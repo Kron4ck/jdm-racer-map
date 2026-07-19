@@ -12,36 +12,41 @@ import type { Racer } from "@/lib/supabase";
 type AuthedRacer = Pick<Racer, "id" | "telegram_id" | "display_name" | "avatar_url">;
 
 interface AuthContextValue {
-  racer:   AuthedRacer | null;
-  loading: boolean;
+  racer:    AuthedRacer | null;
+  loading:  boolean;
+  initData: string | null;  // raw Telegram initData — passed to location hooks
 }
 
-const AuthContext = createContext<AuthContextValue>({ racer: null, loading: true });
+const AuthContext = createContext<AuthContextValue>({
+  racer: null, loading: true, initData: null,
+});
 
 export function useAuth() {
   return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [racer,   setRacer]   = useState<AuthedRacer | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [racer,    setRacer]    = useState<AuthedRacer | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [initData, setInitData] = useState<string | null>(null);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
 
-    // Not inside Telegram — skip auth, show placeholder UI
     if (!tg?.initData) {
       setLoading(false);
       return;
     }
 
+    const raw = tg.initData;
+    setInitData(raw);
     tg.ready();
     tg.expand();
 
     fetch("/api/auth", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ initData: tg.initData }),
+      body:    JSON.stringify({ initData: raw }),
     })
       .then((r) => r.json())
       .then((data) => { if (data.racer) setRacer(data.racer); })
@@ -50,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ racer, loading }}>
+    <AuthContext.Provider value={{ racer, loading, initData }}>
       {children}
     </AuthContext.Provider>
   );

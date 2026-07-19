@@ -4,21 +4,12 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import type { ActiveRacer } from "@/hooks/useActiveRacers";
 
-/* ── Default center: Chișinău ── */
 const MAP_CENTER: [number, number] = [47.0105, 28.8638];
 const MAP_ZOOM = 13;
 
-/* ── Mock racer locations around Chișinău ── */
-const MOCK_RACERS = [
-  { id: 1, lat: 47.0205, lng: 28.8538, name: "Mihail V.", car: "Skyline R34" },
-  { id: 2, lat: 47.0005, lng: 28.8738, name: "Alex T.",   car: "Supra MK4"  },
-  { id: 3, lat: 47.0155, lng: 28.8838, name: "Radu M.",   car: "Evo IX"     },
-  { id: 4, lat: 46.9980, lng: 28.8450, name: "Dan P.",    car: "RX-7 FD"    },
-  { id: 5, lat: 47.0320, lng: 28.8720, name: "Andrei L.", car: "S15 Silvia" },
-];
-
-/* ── Custom neon marker factory ── */
+/* ── Neon marker factory ── */
 function createNeonMarker(color: string, glowColor: string): L.DivIcon {
   return L.divIcon({
     className: "",
@@ -35,45 +26,64 @@ function createNeonMarker(color: string, glowColor: string): L.DivIcon {
           background:#fff;opacity:0.8;
           position:absolute;top:2px;left:2px;
         "></div>
-      </div>
-    `,
-    iconSize: [14, 14],
+      </div>`,
+    iconSize:   [14, 14],
     iconAnchor: [7, 7],
   });
 }
 
-const racerMarker = createNeonMarker("#FF4500", "#FF6622");
-const selfMarker  = createNeonMarker("#00D4FF", "#33DDFF");
+const markerOther = createNeonMarker("#FF4500", "#FF6622"); // orange — other racers
+const markerSelf  = createNeonMarker("#00D4FF", "#33DDFF"); // blue   — own position
 
-/* ── Inner component: requests geolocation and flies the map view ── */
+/* ── Relative time helper ── */
+function timeAgo(iso: string): string {
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (secs < 60)  return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  return `${Math.floor(secs / 3600)}h ago`;
+}
+
+/* ── Popup style ── */
+const popupStyle = (borderColor: string): React.CSSProperties => ({
+  background:  "#0e0f1c",
+  border:      `1px solid ${borderColor}`,
+  borderRadius: "6px",
+  padding:     "8px 12px",
+  color:       "#e2e8f0",
+  fontFamily:  "var(--font-racing), sans-serif",
+  minWidth:    "120px",
+});
+
+/* ── Fly to real position on first load ── */
 function GeolocateView() {
   const map = useMap();
-
   useEffect(() => {
     if (!navigator?.geolocation) return;
-
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        map.flyTo(
-          [pos.coords.latitude, pos.coords.longitude],
-          MAP_ZOOM,
-          { animate: true, duration: 1.2 },
-        );
-      },
-      () => {
-        /* denied or unavailable — stay on Chișinău, no action needed */
-      },
+      (pos) => map.flyTo(
+        [pos.coords.latitude, pos.coords.longitude],
+        MAP_ZOOM,
+        { animate: true, duration: 1.2 },
+      ),
+      () => { /* denied — stay on Chișinău */ },
       { timeout: 10_000, maximumAge: 0, enableHighAccuracy: false },
     );
   }, [map]);
-
   return null;
 }
 
-export default function MapView() {
+interface MapViewProps {
+  activeRacers: ActiveRacer[];
+  myRacerId:    string | null;
+}
+
+export default function MapView({ activeRacers, myRacerId }: MapViewProps) {
   useEffect(() => {
     delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
   }, []);
+
+  const selfRacer  = activeRacers.find((r) => r.racer_id === myRacerId) ?? null;
+  const otherRacers = activeRacers.filter((r) => r.racer_id !== myRacerId);
 
   return (
     <div className="map-wrapper w-full h-full">
@@ -84,7 +94,6 @@ export default function MapView() {
         zoomControl={true}
         attributionControl={true}
       >
-        {/* Dark CartoDB tiles */}
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -92,68 +101,51 @@ export default function MapView() {
           maxZoom={19}
         />
 
-        {/* Geolocation handler — flies view to real position if granted */}
         <GeolocateView />
 
-        {/* Mock racer markers */}
-        {MOCK_RACERS.map((racer) => (
-          <Marker key={racer.id} position={[racer.lat, racer.lng]} icon={racerMarker}>
+        {/* Other active racers — orange markers */}
+        {otherRacers.map((r) => (
+          <Marker key={r.racer_id} position={[r.lat, r.lng]} icon={markerOther}>
             <Popup closeButton={false}>
-              <div style={{
-                background: "#0e0f1c",
-                border: "1px solid rgba(255,69,0,0.4)",
-                borderRadius: "6px",
-                padding: "8px 12px",
-                color: "#e2e8f0",
-                fontFamily: "var(--font-racing), sans-serif",
-                minWidth: "120px",
-              }}>
-                <div style={{ color: "#FF4500", fontWeight: 700, fontSize: "14px", letterSpacing: "0.05em" }}>
-                  {racer.name}
+              <div style={popupStyle("rgba(255,69,0,0.4)")}>
+                <div style={{ color: "#FF4500", fontWeight: 700, fontSize: "14px" }}>
+                  {r.display_name ?? "Racer"}
                 </div>
-                <div style={{ color: "rgba(226,232,240,0.6)", fontSize: "11px", marginTop: "2px" }}>
-                  {racer.car}
-                </div>
-                <div style={{ color: "rgba(0,212,255,0.7)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
-                  STAȚIONAR
+                <div style={{ color: "rgba(0,212,255,0.6)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
+                  {timeAgo(r.updated_at)}
                 </div>
               </div>
             </Popup>
           </Marker>
         ))}
 
-        {/* "My location" placeholder — stays at Chișinău until real tracking is added */}
-        <Marker position={MAP_CENTER} icon={selfMarker}>
-          <Popup closeButton={false}>
-            <div style={{
-              background: "#0e0f1c",
-              border: "1px solid rgba(0,212,255,0.4)",
-              borderRadius: "6px",
-              padding: "8px 12px",
-              color: "#e2e8f0",
-              fontFamily: "var(--font-racing), sans-serif",
-            }}>
-              <div style={{ color: "#00D4FF", fontWeight: 700, fontSize: "14px" }}>
-                TU
-              </div>
-              <div style={{ color: "rgba(226,232,240,0.5)", fontSize: "10px", marginTop: "2px", letterSpacing: "0.08em" }}>
-                LOCAȚIE PLACEHOLDER
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-
-        {/* Soft radius around placeholder position */}
-        <Circle
-          center={MAP_CENTER}
-          radius={800}
-          pathOptions={{
-            color: "rgba(0,212,255,0.4)",
-            fillColor: "rgba(0,212,255,0.04)",
-            fillOpacity: 1,
-            weight: 1,
-          }}
-        />
+        {/* Self — blue marker + accuracy circle */}
+        {selfRacer && (
+          <>
+            <Marker position={[selfRacer.lat, selfRacer.lng]} icon={markerSelf}>
+              <Popup closeButton={false}>
+                <div style={popupStyle("rgba(0,212,255,0.4)")}>
+                  <div style={{ color: "#00D4FF", fontWeight: 700, fontSize: "14px" }}>
+                    {selfRacer.display_name ?? "TU"}
+                  </div>
+                  <div style={{ color: "rgba(0,212,255,0.5)", fontSize: "10px", marginTop: "4px", letterSpacing: "0.08em" }}>
+                    LIVE
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+            <Circle
+              center={[selfRacer.lat, selfRacer.lng]}
+              radius={150}
+              pathOptions={{
+                color:       "rgba(0,212,255,0.4)",
+                fillColor:   "rgba(0,212,255,0.06)",
+                fillOpacity: 1,
+                weight:      1,
+              }}
+            />
+          </>
+        )}
       </MapContainer>
     </div>
   );
